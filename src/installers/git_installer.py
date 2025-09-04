@@ -4,10 +4,8 @@ import os
 
 def is_git_installed():
     """Check if Git is installed and available in PATH."""
-        # lets invoke winget to see if git is installed
-    return True
+    return shutil.which("git") is not None
         
-
 
 def install_git():
     """Download and install Git if not already installed."""
