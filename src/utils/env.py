@@ -1,10 +1,34 @@
 import os
+import sys
 import winreg
+import ctypes
+import subprocess
+
+def is_admin():
+    """
+    Check if the script is running with administrator privileges.
+    """
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except Exception:
+        return False
+
+def run_as_admin():
+    """
+    Relaunch the current script with administrator privileges.
+    """
+    print("Restarting script as administrator...")
+    python_exe = sys.executable
+    script = os.path.abspath(sys.argv[0])
+    params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
+    command = f'Start-Process "{python_exe}" -ArgumentList \'"{script}" {params}\' -Verb RunAs'
+    subprocess.run(['powershell', '-Command', command])
+    sys.exit()
 
 def add_to_system_path(new_path):
     """
     Add a directory to the Windows system PATH if not already present.
-    Requires administrator privileges.
+    Assumes script is running as administrator.
     """
     with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
                         r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",

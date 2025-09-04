@@ -1,5 +1,6 @@
 import subprocess
 import shutil
+import os
 
 def is_vscode_installed():
     """Check if VS Code is installed and available in PATH."""
