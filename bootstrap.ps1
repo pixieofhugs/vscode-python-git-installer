@@ -46,6 +46,21 @@ Write-Host "Installing Python dependencies..."
 & $python.Source -m pip install --upgrade pip
 & $python.Source -m pip install -r requirements.txt
 
-# Run main.py
-Write-Host "Running main.py..."
-& $python.Source src/main.py
+# Prompt user to run main.py
+while ($true) {
+    $response = Read-Host "Do you want to run main.py as administrator now? (y/n)"
+    if ($response -eq 'y') {
+        Write-Host "Running main.py as administrator in a new PowerShell window..."
+        $mainScript = Join-Path $PSScriptRoot 'src\main.py'
+        $pythonExe = $python.Source
+        $workingDir = $PSScriptRoot
+        $psCommand = "& `"$pythonExe`" `"$mainScript`"; Write-Host 'Press any key to exit...'; [void][System.Console]::ReadKey()"
+        Start-Process powershell -ArgumentList "-NoExit -Command `$psCommand" -Verb RunAs -WorkingDirectory $workingDir
+        break
+    } elseif ($response -eq 'n') {
+        Write-Host "Exiting without running main.py."
+        break
+    } else {
+        Write-Host "Please enter 'y' or 'n'."
+    }
+}

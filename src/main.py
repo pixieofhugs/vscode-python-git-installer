@@ -22,7 +22,7 @@ def ensure_admin():
         subprocess.run(['powershell', '-Command', command])
         sys.exit()
 
-ensure_admin()
+#ensure_admin()
 
 from installers.vscode import install_vscode, prompt_vscode_sign_in
 from installers.git_installer import install_git, configure_git_credentials
