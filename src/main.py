@@ -15,8 +15,6 @@ def ensure_admin():
         is_admin = ctypes.windll.shell32.IsUserAnAdmin()
     except Exception:
         is_admin = False
-    if not is_admin:
-        print("Administrator privileges required. Restarting as administrator...")
         python_exe = sys.executable
         script = os.path.abspath(sys.argv[0])
         params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
