@@ -1,14 +1,12 @@
-# PowerShell bootstrap script for Windows
-# Usage: .\bootstrap.ps1
+# PowerShell Dev Environment Bootstrapper for Windows
+# Installs Python, Git, VS Code, configures Git, and updates PATH
 
-# Function to check if running as administrator
 function Test-Admin {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal $currentUser
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-# Relaunch as admin if not already
 if (-not (Test-Admin)) {
     Write-Host "Script is not running as administrator. Relaunching with elevated privileges..."
     $scriptPath = $MyInvocation.MyCommand.Definition
@@ -16,51 +14,78 @@ if (-not (Test-Admin)) {
     exit
 }
 
-# Check for Python
-$python = Get-Command python -ErrorAction SilentlyContinue
-if (-not $python) {
-    $python = Get-Command python3 -ErrorAction SilentlyContinue
-}
-
-if (-not $python) {
-    Write-Host "Python not found. Downloading and installing Python..."
-    $pythonUrl = "https://www.python.org/ftp/python/3.10.0/python-3.10.0-amd64.exe"
-    $installerPath = "$env:TEMP\PythonSetup.exe"
-    Invoke-WebRequest -Uri $pythonUrl -OutFile $installerPath
-    Write-Host "Running Python installer..."
-    Start-Process -FilePath $installerPath -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1" -Wait -Verb RunAs
-    Remove-Item $installerPath
-    $env:Path += ";$env:LOCALAPPDATA\Microsoft\WindowsApps"
-    $python = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $python) {
-        $python = Get-Command python3 -ErrorAction SilentlyContinue
-    }
-    if (-not $python) {
-        Write-Error "Python installation failed. Please install Python manually."
-        exit 1
-    }
-}
-
-# Upgrade pip and install dependencies
-Write-Host "Installing Python dependencies..."
-& $python.Source -m pip install --upgrade pip
-& $python.Source -m pip install -r requirements.txt
-
-# Prompt user to run main.py
-while ($true) {
-    $response = Read-Host "Do you want to run main.py as administrator now? (y/n)"
-    if ($response -eq 'y') {
-        Write-Host "Running main.py as administrator in a new PowerShell window..."
-        $mainScript = Join-Path $PSScriptRoot 'src\main.py'
-        $pythonExe = $python.Source
-        $workingDir = $PSScriptRoot
-        $psCommand = "& `"$pythonExe`" `"$mainScript`"; Write-Host 'Press any key to exit...'; [void][System.Console]::ReadKey()"
-        Start-Process powershell -ArgumentList "-NoExit -Command `$psCommand" -Verb RunAs -WorkingDirectory $workingDir
-        break
-    } elseif ($response -eq 'n') {
-        Write-Host "Exiting without running main.py."
-        break
+function Install-PackageIfMissing {
+    param(
+        [string]$ExeName,
+        [string]$Url,
+        [string]$InstallerArgs
+    )
+    if (-not (Get-Command $ExeName -ErrorAction SilentlyContinue)) {
+        $file = "$env:TEMP\$ExeName-setup.exe"
+        Write-Host "Downloading $ExeName..."
+        Invoke-WebRequest -Uri $Url -OutFile $file
+        Write-Host "Installing $ExeName..."
+        Start-Process -FilePath $file -ArgumentList $InstallerArgs -Wait -Verb RunAs
+        Remove-Item $file
     } else {
-        Write-Host "Please enter 'y' or 'n'."
+        Write-Host "$ExeName is already installed. Skipping."
     }
 }
+
+# Install Python
+Install-PackageIfMissing -ExeName "python" -Url "https://www.python.org/ftp/python/3.10.0/python-3.10.0-amd64.exe" -InstallerArgs "/quiet InstallAllUsers=1 PrependPath=1"
+
+# Install Git
+Install-PackageIfMissing -ExeName "git" -Url "https://github.com/git-for-windows/git/releases/latest/download/Git-x86_64.exe" -InstallerArgs "/VERYSILENT /NORESTART"
+
+# Install VS Code
+Install-PackageIfMissing -ExeName "code" -Url "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64" -InstallerArgs "/silent /mergetasks=!runcode"
+
+# Add Git and Python to system PATH
+function Add-ToSystemPath {
+    param([string]$NewPath)
+    $reg = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+    $current = (Get-ItemProperty -Path $reg -Name Path).Path
+    if ($current -notlike "*$NewPath*") {
+        Set-ItemProperty -Path $reg -Name Path -Value ($current + ";" + $NewPath)
+        Write-Host "Added $NewPath to system PATH. You may need to restart for changes to take effect."
+    } else {
+        Write-Host "$NewPath is already in system PATH."
+    }
+}
+
+# Typical install paths
+$gitPath = "C:\Program Files\Git\cmd"
+$pythonPath = (Get-Command python).Source | Split-Path
+Add-ToSystemPath -NewPath $gitPath
+Add-ToSystemPath -NewPath $pythonPath
+
+# Configure Git credentials
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    $username = git config --global user.name
+    $email = git config --global user.email
+    if (-not $username) {
+        $username = Read-Host "Enter your Git username"
+        git config --global user.name "$username"
+    } else {
+        Write-Host "Git username already set: $username"
+    }
+    if (-not $email) {
+        $email = Read-Host "Enter your Git email"
+        git config --global user.email "$email"
+    } else {
+        Write-Host "Git email already set: $email"
+    }
+} else {
+    Write-Host "Git is not installed. Skipping Git credential configuration."
+}
+
+# Prompt user to sign in to VS Code
+if (Get-Command code -ErrorAction SilentlyContinue) {
+    Write-Host "Launching VS Code. Please sign in (bottom left 'Accounts' icon)."
+    Start-Process code
+} else {
+    Write-Host "VS Code is not installed. Skipping sign-in prompt."
+}
+
+Write-Host "All installations and configurations completed successfully."
