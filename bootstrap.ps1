@@ -41,6 +41,9 @@ Install-PackageIfMissing -ExeName "git" -Url "https://github.com/git-for-windows
 # Install VS Code
 Install-PackageIfMissing -ExeName "code" -Url "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64" -InstallerArgs "/silent /mergetasks=!runcode"
 
+# Install GitHub Desktop
+Install-PackageIfMissing -ExeName "github" -Url "https://central.github.com/deployments/desktop/desktop/latest/win32" -InstallerArgs "/silent"
+
 # Add Git and Python to system PATH
 function Add-ToSystemPath {
     param([string]$NewPath)
