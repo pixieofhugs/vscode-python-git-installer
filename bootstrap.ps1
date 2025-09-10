@@ -44,7 +44,7 @@ Install-PackageIfMissing -ExeName "code" -Url "https://code.visualstudio.com/sha
 # Install GitHub Desktop
 Install-PackageIfMissing -ExeName "github" -Url "https://central.github.com/deployments/desktop/desktop/latest/win32" -InstallerArgs "/silent"
 
-# Add Git and Python to system PATH
+# Add Git, Python, and Python Scripts to system PATH
 function Add-ToSystemPath {
     param([string]$NewPath)
     $reg = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
@@ -60,8 +60,10 @@ function Add-ToSystemPath {
 # Typical install paths
 $gitPath = "C:\Program Files\Git\cmd"
 $pythonPath = (Get-Command python).Source | Split-Path
+$pythonScriptsPath = Join-Path $pythonPath 'Scripts'
 Add-ToSystemPath -NewPath $gitPath
 Add-ToSystemPath -NewPath $pythonPath
+Add-ToSystemPath -NewPath $pythonScriptsPath
 
 # Configure Git credentials
 if (Get-Command git -ErrorAction SilentlyContinue) {
@@ -89,6 +91,22 @@ if (Get-Command code -ErrorAction SilentlyContinue) {
     Start-Process code
 } else {
     Write-Host "VS Code is not installed. Skipping sign-in prompt."
+}
+
+# Install VS Code extensions from vscode-extensions.txt if VS Code is installed
+$extensionsFile = Join-Path $PSScriptRoot 'vscode-extensions.txt'
+if (Get-Command code -ErrorAction SilentlyContinue -OutVariable codeCmd) {
+    if (Test-Path $extensionsFile) {
+        $extensions = Get-Content $extensionsFile | Where-Object { $_ -and -not $_.StartsWith('#') }
+        foreach ($ext in $extensions) {
+            Write-Host "Installing VS Code extension: $ext"
+            & $codeCmd.Source --install-extension $ext
+        }
+    } else {
+        Write-Host "No vscode-extensions.txt file found. Skipping extension install."
+    }
+} else {
+    Write-Host "VS Code is not installed. Skipping extension install."
 }
 
 Write-Host "All installations and configurations completed successfully."
